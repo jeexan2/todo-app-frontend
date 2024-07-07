@@ -1,126 +1,119 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { AntDesign } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, Button, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const TaskGroup = ({ group, onRemove, onNameChange }) => {
-  return (
-    <View style={styles.taskGroup}>
-      <TextInput
-        style={styles.taskGroupText}
-        value={group.name}
-        onChangeText={(text) => onNameChange(group.id, text)}
-        placeholder="Enter Task Group Name"
-      />
-      <TouchableOpacity style={styles.removeButton} onPress={() => onRemove(group.id)}>
-        <AntDesign name="delete" size={24} color="white" />
-      </TouchableOpacity>
-    </View>
-  );
-};
+const App = () => {
+  const [taskGroups, setTaskGroups] = useState([]);
 
-export default function App() {
-  const [taskGroups, setTaskGroups] = useState([{ id: 1, name: '' }, { id: 2, name: '' }]);
+  useEffect(() => {
+    const loadTaskGroups = async () => {
+      try {
+        const storedTaskGroups = await AsyncStorage.getItem('taskGroups');
+        if (storedTaskGroups !== null) {
+          setTaskGroups(JSON.parse(storedTaskGroups));
+        }
+      } catch (error) {
+        console.error('Failed to load task groups.', error);
+      }
+    };
+
+    loadTaskGroups();
+  }, []);
+
+  useEffect(() => {
+    const saveTaskGroups = async () => {
+      try {
+        await AsyncStorage.setItem('taskGroups', JSON.stringify(taskGroups));
+      } catch (error) {
+        console.error('Failed to save task groups.', error);
+      }
+    };
+
+    saveTaskGroups();
+  }, [taskGroups]);
 
   const addTaskGroup = () => {
-    setTaskGroups([...taskGroups, { id: taskGroups.length + 1, name: '' }]);
+    setTaskGroups([...taskGroups, { id: Date.now().toString(), name: 'New Task Group', tasks: [] }]);
   };
 
   const removeTaskGroup = (id) => {
     setTaskGroups(taskGroups.filter(group => group.id !== id));
   };
 
-  const changeTaskGroupName = (id, newName) => {
-    const updatedGroups = taskGroups.map(group =>
-      group.id === id ? { ...group, name: newName } : group
-    );
-    setTaskGroups(updatedGroups);
+  const updateTaskGroupName = (id, newName) => {
+    setTaskGroups(taskGroups.map(group => group.id === id ? { ...group, name: newName } : group));
   };
 
   const renderTaskGroup = ({ item }) => (
-    <TaskGroup
-      group={item}
-      onRemove={removeTaskGroup}
-      onNameChange={changeTaskGroupName}
-    />
+    <View style={styles.taskGroup}>
+      <TextInput
+        style={styles.taskGroupName}
+        value={item.name}
+        onChangeText={(text) => updateTaskGroupName(item.id, text)}
+      />
+      <TouchableOpacity onPress={() => removeTaskGroup(item.id)} style={styles.removeButton}>
+        <Text style={styles.removeButtonText}>-</Text>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior="padding">
+    <View style={styles.container}>
       <FlatList
         data={taskGroups}
         renderItem={renderTaskGroup}
-        keyExtractor={item => item.id.toString()}
-        contentContainerStyle={styles.taskList}
+        keyExtractor={item => item.id}
       />
-      <TouchableOpacity style={styles.addButton} onPress={addTaskGroup}>
+      <TouchableOpacity onPress={addTaskGroup} style={styles.addButton}>
         <Text style={styles.addButtonText}>Add New Task</Text>
       </TouchableOpacity>
-      <StatusBar style="auto" />
-    </KeyboardAvoidingView>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 50,
-  },
-  taskList: {
-    width: '100%',
-    paddingHorizontal: 20,
+    backgroundColor: '#fff',
+    padding: 20,
   },
   taskGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f8c471',
-    padding: 20,
     marginBottom: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#f5b041',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 5,
+    padding: 10,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 5,
   },
-  taskGroupText: {
-    fontSize: 18,
-    fontWeight: '500',
+  taskGroupName: {
     flex: 1,
-    marginRight: 10,
+    fontSize: 16,
+    padding: 5,
+    borderBottomWidth: 1,
+    borderColor: '#ccc',
   },
   removeButton: {
-    backgroundColor: '#e74c3c',
-    borderRadius: 50,
+    marginLeft: 10,
+    backgroundColor: 'red',
     padding: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 5,
   },
-  addButton: {
-    position: 'absolute',
-    bottom: 40,
-    right: 40,
-    backgroundColor: '#58d68d',
-    borderRadius: 50,
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  addButtonText: {
-    fontSize: 18,
+  removeButtonText: {
     color: 'white',
     fontWeight: 'bold',
   },
+  addButton: {
+    backgroundColor: 'green',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  addButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });
+
+export default App;
